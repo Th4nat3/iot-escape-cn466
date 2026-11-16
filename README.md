@@ -1,34 +1,36 @@
 # IoT ESCAPE — CN466 AIoT Learning Game
 
-โครงงานเว็บไซต์เกมการเรียนรู้ AIoT วิชา CN466 รองรับ 6 Missions และการสาธิต ESP32-S2 (Cucumber R) ผ่าน USB Serial PING/ACK รวมถึงการตรวจสถานะ Wi-Fi/HTTP
+Educational six-mission AIoT escape room built with React, TypeScript and Vite, developed with AI assistance and verified with automated tests. This repository contains the application, tests, and optional Cucumber R (ESP32-S2) firmware.
 
-## Current deployment status
+## Project content
+- **M01–M06**: interactive learning missions about data, HTTP/JSON, AI instructions and RGB, with local progress and a score out of 100.
+- **Local AI demo**: small Multinomial Naive Bayes classifier running in the browser in M04; it is not a cloud LLM or automatic hardware controller. Scoring logic remains rule-based.
+- **ESP32-S2 gateway**: Web Serial USB link with request ID matching and PING/ACK; optional Wi-Fi hotspot firmware exposing HTTP `/status`.
+- **Optional RGB experiment**: separate firmware sketch and browser controls; must be flashed and physically tested before describing GPIO/RGB as working.
+- **MQTT** is not implemented. Sensor measurements remain `null` when hardware sensors are absent.
 
-> Repository created. **Source files and GitHub Pages deployment have not yet been uploaded or verified.** This README is a staging document.
+## Run locally
+Requires Node.js compatible with Vite 8 (Node.js 22 recommended).
+```sh
+npm install
+npm test
+npm run lint
+npm run build
+npm run dev
+```
+Open the local address printed by Vite (normally http://localhost:5173/). For USB Serial, use Chrome/Edge on a compatible computer and allow the ESP32-S2 port. Keep Arduino Serial Monitor and other serial test tabs disconnected.
 
-## Project features
+## GitHub Pages deployment
+The workflow `.github/workflows/deploy-pages.yml` runs installation, 35 automated tests, ESLint, Vite build, and GitHub Pages deployment. To activate it **once**, go to **Settings → Pages → Build and deployment → Source: GitHub Actions** and rerun the latest workflow in **Actions**.
 
-- Six learning missions (M01–M06), local progress and score display.
-- ESP32-S2 USB Serial gateway with request-id-based PING/ACK.
-- Optional phone hotspot firmware with `/status` endpoint.
-- Optional RGB LED firmware and browser-based local AI demo. These optional features require separate real-device verification.
+After a **successful deployment** the expected site URL is https://th4nat3.github.io/iot-escape-cn466/ . Do not treat this URL as live until GitHub shows the deployment passed and the page opens.
 
-## Run locally (after uploading the project files)
+## Verification status (November 16, 2026)
+- 35/35 automated tests, ESLint and Vite build passed in GitHub Actions run [#3](https://github.com/Th4nat3/iot-escape-cn466/actions/runs/43886586356).
+- GitHub Pages deployment was blocked at `configure-pages` because Pages had not yet been enabled in repository settings.
+- Prior real-board evidence supplied by the student shows USB Serial PING/ACK, hotspot connection and iPhone Safari HTTP `/status`.
+- Physical RGB/GPIO, MQTT, and a deployed site's end-to-end browser flow are **not verified**.
 
-1. Install Node.js as specified by the project and run `npm ci`.
-2. Run `npm test`, `npm run lint`, and `npm run build`.
-3. Start the site with `npm run dev` and open the displayed localhost URL.
-4. For serial hardware tests, use Chrome/Edge on `localhost`, open the hardware monitor and select the ESP32-S2 serial port. Do not leave Arduino Serial Monitor or other serial tabs connected.
-5. Never add real hotspot passwords, API keys, or private configuration files to this public repository.
+See [submission and demo checklist](docs/CN466_SUBMISSION_TH.md).
 
-## Submission evidence
-
-Distinguish unit test results, local browser demonstrations and hardware tests. Past testing confirmed browser missions, Serial PING/ACK and an iPhone Safari response from the board's `/status` endpoint; GPIO/RGB and MQTT must not be labelled verified without separate physical tests.
-
-## GitHub Pages
-
-The project's `.github/workflows/deploy-pages.yml` is designed to deploy a Vite build after all source files are uploaded. Open **Settings → Pages → Build and deployment → Source: GitHub Actions**, then check the deployment in **Actions**. Project site URL is expected to be `https://th4nat3.github.io/iot-escape-cn466/` **only after deployment succeeds**.
-
-## Credits
-
-CN466 student learning project, developed with AI assistance. Keep screenshots and prompts of the development/review flow for the submission video.
+**Security:** Do not commit hotspot passwords, access tokens, .env credentials, or files from node_modules.
