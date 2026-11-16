@@ -21,14 +21,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-      - name: Install exact locked dependencies
-        run: npm ci
-      - name: Run automated mission and transport checks
+      - name: Generate missing lockfile (repository upload omitted it)
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Run automated tests
         run: npm test
       - name: Run linter
         run: npm run lint
-      - name: Build for the GitHub Pages project path
+      - name: Build project site
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build
