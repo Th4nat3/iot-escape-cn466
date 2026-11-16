@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IoT ESCAPE | ESP32-S2 Hardware Live</title>
+<style>
+  :root { color-scheme: dark; --bg:#050d16; --surface:#0b1d29; --border:#22516a; --cyan:#59e4dc; --text:#e8f2f8; --muted:#8fbdcc; --warning:#f7c075; }
+  * { box-sizing:border-box; } body {margin:0;background:radial-gradient(circle at 80% 0%, #10374a 0%, #050d16 45%);color:var(--text);font:16px/1.55 system-ui, -apple-system,"Segoe UI",sans-serif;}
+  .wrap {max-width:1100px;margin:auto;padding:30px 22px 70px;} .top {display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:20px;flex-wrap:wrap}
+  .logo {font:700 16px/1.3 Consolas,monospace;letter-spacing:.1em}.logo em {font-style:normal;color:var(--cyan)} a {color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
+  .eyebrow {margin:44px 0 6px;color:var(--cyan);font:700 12px Consolas,monospace;letter-spacing:.15em}
+  h1 {font-weight:850;line-height:1.05;letter-spacing:-.045em;font-size:clamp(36px,5vw,60px);margin:0 0 14px} h1 span {color:var(--cyan)}
+  .lead {color:#a9cbd6;max-width:800px;margin:0 0 24px} .panel{background:#0a1d298a;border:1px solid var(--border);border-radius:12px;padding:22px;margin-top:18px}
+  .controls {display:flex;gap:10px;align-items:center;flex-wrap:wrap} button {border:1px solid var(--border);color:var(--text);background:#112938;border-radius:6px;padding:12px 18px;font:700 12px Consolas,monospace;letter-spacing:.04em;cursor:pointer}
+  button.primary {background:var(--cyan);color:#03232c;border-color:var(--cyan)} button:disabled{opacity:.45;cursor:not-allowed} button:focus-visible,a:focus-visible{outline:2px solid white;outline-offset:3px}
+  .status {font:700 12px Consolas,monospace;color:var(--warning)} .status.good{color:var(--cyan)}
+  .grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px} .metric {border:1px solid var(--border);border-radius:8px;padding:17px;background:#0d2330}
+  .label {display:block;color:var(--muted);text-transform:uppercase;font:700 11px/1.5 Consolas,monospace;letter-spacing:.06em}
+  .value {display:block;font:750 30px/1.35 system-ui,sans-serif;letter-spacing:-.04em;margin-top:8px;overflow-wrap:anywhere} .unit{font-size:13px;color:var(--muted);font-weight:400}
+  .small{color:var(--muted);font-size:13px;margin-top:12px} .warn {color:var(--warning)}
+  .mono {font-family:Consolas,Monaco,monospace} .log {height:300px;overflow:auto;background:#04121d;border:1px solid var(--border);border-radius:6px;padding:15px;white-space:pre-wrap;overflow-wrap:anywhere;color:#b5d8e4;font:12px/1.65 Consolas,monospace}
+  .wifi-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.wifi-form label{display:grid;gap:6px;color:var(--muted);font-size:13px}.wifi-form input{width:100%;min-width:0;background:#04121d;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:12px;font:15px system-ui,sans-serif}.wifi-form input:focus{outline:2px solid var(--cyan)}.network-info{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:14px}.network-info strong{color:var(--cyan)} .network-info a{overflow-wrap:anywhere}.network-hint{color:var(--warning);font-size:13px;margin-top:12px} h2{font-size:17px;margin:0 0 12px} .footer {color:var(--muted);font-size:12px;margin-top:24px}
+  @media(max-width:760px){.grid {grid-template-columns:repeat(2,minmax(0,1fr))}} @media(max-width:480px){.grid,.wifi-form {grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top"><div class="logo"><em>IoT</em> ESCAPE // HARDWARE LINK</div><a href="./">← กลับไปหน้าเกม</a></header>
+<p class="eyebrow">CN466 / ESP32-S2 / USB SERIAL / PING + ACK</p>
+<h1>CONNECT THE <span>REAL BOARD.</span></h1>
+<p class="lead">หน้าทดสอบข้อมูลจาก ESP32-S2 ผ่าน USB Serial (115200 baud) และเป็นเกตเวย์ส่งคำสั่ง PING จากเกมเพื่อรอ ACK จากบอร์ดจริง ไม่อัปโหลด Firmware อัตโนมัติ และไม่อ้างว่ามีเซนเซอร์หากยังไม่ได้ต่อ ส่วน RGB ต้องใช้ Firmware เสริมและมีการยืนยันด้วยสายตา</p>
+<section class="panel" aria-label="Connection">
+ <div class="controls">
+  <button id="connect" class="primary">CONNECT ESP32-S2 (COM3)</button>
+  <button id="disconnect" disabled>DISCONNECT</button>
+  <button id="clear">CLEAR LOG</button>
+  <span id="state" class="status" role="status" aria-live="polite">NOT CONNECTED</span>
+ </div>
+ <div class="small">เมื่อคลิก Connect ให้เลือกพอร์ต <strong>COM3</strong> ของ ESP32-S2 แล้วกด Connect ในหน้าต่าง Chrome • Baud rate: <strong>115200</strong></div>
+ <div class="small warn">ต้องปิด Serial Monitor ของ Arduino IDE, Python miniterm หรือโปรแกรมอื่นที่ใช้งาน COM3 ก่อน ไม่เช่นนั้น Chrome จะเปิดพอร์ตไม่ได้ • ให้เปิด COM3 ที่หน้านี้เพียงหน้าเดียว</div>
+</section>
+<section class="panel" aria-label="Mobile Hotspot configuration">
+ <h2>PHONE HOTSPOT / WI-FI 2.4 GHz</h2>
+ <p class="small">ใช้ Firmware ใหม่ในโฟลเดอร์ <span class="mono">firmware/IoT_Escape_ESP32S2_Hotspot</span> ก่อนใช้งานส่วนนี้ · กรอกชื่อ Hotspot/รหัสผ่านในคอมพิวเตอร์เท่านั้น ไม่บันทึกในไฟล์เว็บ ไม่ส่งไปหน้าเกม และไม่ใช่การทดสอบเซนเซอร์</p>
+ <div class="wifi-form">
+  <label>HOTSPOT NAME (SSID)<input id="wifi-ssid" maxlength="32" type="text" autocomplete="off" placeholder="ชื่อ Hotspot 2.4 GHz"></label>
+  <label>HOTSPOT PASSWORD<input id="wifi-password" maxlength="63" type="password" autocomplete="off" placeholder="อย่างน้อย 8 ตัวอักษร"></label>
+ </div>
+ <div class="controls" style="margin-top:14px">
+  <button id="wifi-connect" class="primary" disabled>CONNECT WI-FI</button>
+  <button id="wifi-check" disabled>CHECK WI-FI</button>
+  <button id="wifi-disconnect" disabled>DISCONNECT WI-FI</button>
+  <button id="http-check" disabled>TEST HTTP /status</button>
+ </div>
+ <div class="network-info"><span>Wi-Fi: <strong id="wifi-state" role="status">NOT REPORTED</strong></span><span>HTTP: <strong id="http-state">NOT TESTED</strong></span><span id="wifi-ip">IP: —</span><a id="wifi-url" href="#" target="_blank" rel="noopener noreferrer" hidden>OPEN /status</a></div>
+ <p class="network-hint" id="wifi-hint">Wi-Fi ต้องการ Firmware เวอร์ชัน Hotspot ใหม่ PING/ACK ผ่าน USB ไม่เท่ากับ Wi-Fi เชื่อมแล้ว ส่วน MQTT ยังไม่ได้ตั้งค่า Broker และยังไม่ใช้งานในชุดนี้</p>
+ <p class="small">กรณีคอมพิวเตอร์ไม่ได้อยู่เครือข่ายเดียวกับ Hotspot: ปุ่ม TEST HTTP /status บนคอมอาจไม่ผ่านแม้บอร์ดเชื่อม Wi-Fi สำเร็จ ให้เปิดลิงก์ <strong>OPEN /status</strong> จาก Safari บน iPhone ที่ปล่อย Hotspot และเก็บภาพ JSON เป็นหลักฐาน HTTP แยกต่างหาก ผลบน Safari ไม่ได้เปลี่ยนสถานะทดสอบในเบราว์เซอร์คอมโดยอัตโนมัติ</p>
+</section>
+<section class="panel" aria-label="Onboard RGB LED (optional)">
+ <h2>CUCUMBER R — ONBOARD RGB LED (GPIO18) / OPTIONAL</h2>
+ <p class="small">เฉพาะผู้ที่อัปโหลด Firmware รุ่น <span class="mono">IoT_Escape_ESP32S2_RGB_Bonus</span> เท่านั้น • มี RGB LED บนบอร์ด Cucumber R ไม่ต้องใช้ LED หรือตัวต้านทานภายนอก • คำสั่งผ่าน USB Serial เท่านั้น ไม่เปิดพอร์ต HTTP สำหรับสั่ง LED</p>
+ <div class="wifi-form" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+  <label>RED (0–255)<input id="rgb-red" type="number" min="0" max="255" step="1" value="0"></label>
+  <label>GREEN (0–255)<input id="rgb-green" type="number" min="0" max="255" step="1" value="180"></label>
+  <label>BLUE (0–255)<input id="rgb-blue" type="number" min="0" max="255" step="1" value="255"></label>
+ </div>
+ <div class="controls" style="margin-top:14px">
+  <button id="rgb-send" class="primary" disabled>SEND RGB TO REAL BOARD</button>
+  <button id="rgb-off" disabled>RGB OFF</button>
+  <span id="rgb-state" class="status" role="status">NOT TESTED</span>
+ </div>
+ <p class="small">ACK ยืนยันว่า Firmware ยอมรับคำสั่งเท่านั้น ต้องดูว่าไฟบนบอร์ดเปลี่ยนสีจริง แล้วถ่ายคลิปประกอบ จึงจะยืนยันการทำงานของ LED ได้</p>
+</section>
+<section class="grid" aria-label="Live telemetry">
+ <div class="metric"><span class="label">Temperature</span><span class="value"><span id="temperature">—</span><span class="unit"> °C</span></span></div>
+ <div class="metric"><span class="label">Humidity (reported)</span><span class="value"><span id="humidity">—</span><span class="unit"> %</span></span></div>
+ <div class="metric"><span class="label">Soil moisture (raw)</span><span class="value" id="soil">—</span></div>
+ <div class="metric"><span class="label">Plant name</span><span class="value" id="plant" style="font-size:19px;">—</span></div>
+</section>
+<p class="small" id="updated">ยังไม่มี Telemetry จากพอร์ต Serial</p>
+<p class="small" id="origin">DATA ORIGIN: — (ข้อมูลนี้เป็นคำอธิบายจาก Firmware ไม่ใช่หลักฐานยืนยันเซนเซอร์)</p>
+<section class="panel"><h2>LIVE SERIAL LOG</h2><div id="log" class="log" role="log" aria-live="off">รอการเชื่อมต่อกับพอร์ต Serial...</div><p class="small">ข้อมูลจะปรากฏเมื่อ Firmware ส่งข้อความผ่าน USB เช่น <span class="mono">Publish payload: {"temperature":null,...}</span> เมื่อกด PING จากเกมจะมี <span class="mono">TX COMMAND</span> และเมื่อบอร์ดตอบจริงจะมี <span class="mono">RX ACK</span> (หากไม่มี ACK จะรายงาน Timeout)</p></section>
+<p class="footer">สถานะ SERIAL CONNECTED หมายถึงเปิดพอร์ตได้ ส่วน LIVE SERIAL หมายถึงได้รับ JSON ผ่านพอร์ตแล้ว • ค่า null หมายถึงยังไม่มีข้อมูลจากเซนเซอร์ ไม่ใช่ศูนย์ • ข้อมูลและ data_origin เป็นสิ่งที่ Firmware รายงาน ไม่ใช่หลักฐานยืนยันความถูกต้องของเซนเซอร์</p>
+</main>
+<script>
+(() => {
+ 'use strict';
+ const $ = (id) => document.getElementById(id);
+ const logBox = $('log');
+ let port = null;
+ let reader = null;
+ let reading = false;
+ let portOpened = false;
+ let lineBuffer = '';
+ let lineCount = 0;
+ const decoder = new TextDecoder('utf-8');
+ const hardwareChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('iot-escape-hardware') : null;
+ const encoder = new TextEncoder();
+ const pendingPings = new Map();
+ const ACK_TIMEOUT_MS = 5000;
+ const MAX_PENDING = 8;
+ let writeQueue = Promise.resolve();
+ const wifiRequests = new Map();
+ const rgbRequests = new Map();
+ let reportedWifiIp = null;
+ let reportedWifiConnected = false;
+ const VALID_IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+ function validIpv4(ip) { return typeof ip === 'string' && VALID_IPV4.test(ip) && ip.split('.').every(n => +n >= 0 && +n <= 255) && ip !== '0.0.0.0'; }
+ function publishNetwork(info) {
+   if (hardwareChannel) hardwareChannel.postMessage({type:'ESP32_WIFI_STATUS',source:'ESP32-S2',timestamp:Date.now(),payload:info});
+ }
+ function networkStatus(data) {
+   const connected = data.connected === true && data.state === 'CONNECTED' && validIpv4(data.ip);
+   const oldIp = reportedWifiIp;
+   reportedWifiConnected = connected;
+   reportedWifiIp = connected ? data.ip : null;
+   $('wifi-state').textContent = connected ? 'CONNECTED / IP RECEIVED' : String(data.state || 'DISCONNECTED');
+   $('wifi-ip').textContent = connected ? 'IP: ' + reportedWifiIp + ' · RSSI: ' + data.rssi_dbm + ' dBm' : 'IP: —';
+   $('wifi-url').hidden = !connected;
+   if (connected) $('wifi-url').href = 'http://' + reportedWifiIp + '/status';
+   $('http-check').disabled = !connected || !portOpened;
+   if (!connected || oldIp !== reportedWifiIp) $('http-state').textContent = 'NOT TESTED';
+   publishNetwork({connected, state:String(data.state || 'UNKNOWN'), ip: reportedWifiIp,
+     rssi_dbm: connected && Number.isFinite(data.rssi_dbm) ? data.rssi_dbm : null,
+     mqtt_connected:false});
+ }
+ function wifiUnavailable() {
+   reportedWifiConnected = false;
+   reportedWifiIp = null;
+   $('wifi-state').textContent = 'NOT REPORTED';
+   $('wifi-ip').textContent = 'IP: —';
+   $('wifi-url').hidden = true;
+   $('http-state').textContent = 'NOT TESTED';
+   $('http-check').disabled = true;
+   publishNetwork({connected:false,state:'DISCONNECTED',ip:null,rssi_dbm:null,mqtt_connected:false});
+   if(hardwareChannel) hardwareChannel.postMessage({type:'ESP32_HTTP_STATUS',source:'ESP32-S2',timestamp:Date.now(),ok:false,ip:null});
+ }
+ async function writeBoardCommand(command, logText) {
+   if (!portOpened || !reading || !port || !port.writable) {append('WIFI ERROR: Open Serial connection first');return false;}
+   writeQueue = writeQueue.catch(() => {}).then(async () => {
+     if (!portOpened || !reading || !port || !port.writable) throw Error('Serial port is no longer connected');
+     const writer = port.writable.getWriter();
+     try {await writer.write(encoder.encode(JSON.stringify(command) + '\n'));append(logText);}
+     finally {writer.releaseLock();}
+   });
+   try {await writeQueue;return true;}
+   catch(error) {append('WIFI WRITE ERROR: ' + String(error));return false;}
+ }
+ function sendWifiAction(cmd, extra={}) {
+   const id = 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+   wifiRequests.set(id,cmd);
+   // Never include the credentials in logs or BroadcastChannel events.
+   const sent = writeBoardCommand({id,cmd,...extra}, 'TX WIFI COMMAND: ' + cmd + ' (id=' + id + '; credentials hidden)');
+   void sent.then(ok => {if(!ok)wifiRequests.delete(id);});
+   setTimeout(() => {if(wifiRequests.get(id) === cmd){wifiRequests.delete(id);append('WIFI ACK TIMEOUT: ' + cmd + ' — Firmware may not support this command');$('wifi-hint').textContent = 'ไม่มี ACK สำหรับ ' + cmd + ' กรุณาตรวจสอบว่าอัปโหลด Firmware Hotspot ใหม่แล้ว';}},5000);
+ }
+
+
+ function sendRgbCommand(r, g, b) {
+   const valid = [r,g,b].every(v => Number.isInteger(v) && v >= 0 && v <= 255);
+   if (!valid) { $('rgb-state').textContent = 'INVALID RGB: 0–255 ONLY'; return; }
+   if (!portOpened) { $('rgb-state').textContent = 'CONNECT SERIAL FIRST'; return; }
+   const id = 'rgb' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+   rgbRequests.set(id, Date.now());
+   $('rgb-state').textContent = 'WAITING FOR RGB ACK';
+   void writeBoardCommand({id, cmd:'RGB_SET',r,g,b},
+     'TX RGB COMMAND: ' + JSON.stringify({id,cmd:'RGB_SET',r,g,b}))
+     .then(ok => {if(!ok){rgbRequests.delete(id);$('rgb-state').textContent='SERIAL WRITE FAILED';}});
+   setTimeout(() => {if(rgbRequests.has(id)) {rgbRequests.delete(id);$('rgb-state').textContent='RGB ACK TIMEOUT';}},5000);
+ }
+ function commandResult(id, ok, ack=null, error='') {
+   if (!hardwareChannel) return;
+   hardwareChannel.postMessage({
+     type:'ESP32_COMMAND_RESULT', source:'ESP32-S2',
+     timestamp:Date.now(), requestId:id, id, cmd:'PING',
+     ok, ack:ok ? ack : null, error:ok ? null : error
+   });
+ }
+ function failPending(reason) {
+   for (const [id, entry] of pendingPings) {
+     clearTimeout(entry.timer);
+     pendingPings.delete(id);
+     commandResult(id, false, null, reason);
+   }
+ }
+ // This page alone owns the COM port. The game and test page use BroadcastChannel.
+ async function sendCommandToESP32(message) {
+   if (!message || typeof message !== 'object' ||
+       message.source !== 'IOT_ESCAPE_GAME' && message.source !== 'IOT_ESCAPE_TEST') return;
+   if (message.type !== 'ESP32_COMMAND' && message.type !== 'ESP32_COMMAND_REQUEST') return;
+   const id = message.id ?? message.requestId;
+   if (message.cmd !== 'PING' || typeof id !== 'string' ||
+       !/^[A-Za-z0-9_-]{1,64}$/.test(id) ||
+       (message.requestId !== undefined && message.requestId !== id) ||
+       (message.id !== undefined && message.id !== id) ||
+       typeof message.timestamp !== 'number' || !Number.isFinite(message.timestamp) ||
+       Math.abs(Date.now() - message.timestamp) > 15000) {
+     append('COMMAND REJECTED: malformed or stale PING request');
+     return;
+   }
+   if (!portOpened || !port || !port.writable || !reading) {
+     append('COMMAND ERROR: board not connected (' + id + ')');
+     commandResult(id, false, null, 'Hardware Monitor is not connected');
+     return;
+   }
+   if (pendingPings.has(id)) {
+     append('COMMAND REJECTED: duplicate in-flight ID');
+     return;
+   }
+   if (pendingPings.size >= MAX_PENDING) {
+     append('COMMAND REJECTED: too many pending requests');
+     commandResult(id, false, null, 'Too many pending requests');
+     return;
+   }
+   // Register BEFORE writing so a very fast board reply cannot be lost.
+   const entry = {timer: null};
+   pendingPings.set(id, entry);
+   writeQueue = writeQueue.catch(() => {}).then(async () => {
+     if (!portOpened || !port || !port.writable || !reading || !pendingPings.has(id)) return;
+     const writer = port.writable.getWriter();
+     try {
+       const wire = JSON.stringify({id, cmd:'PING'}) + '\n';
+       await writer.write(encoder.encode(wire));
+       append('TX COMMAND: ' + wire.trim());
+       if (pendingPings.has(id)) entry.timer = setTimeout(() => {
+         if (!pendingPings.has(id)) return;
+         pendingPings.delete(id);
+         append('ACK TIMEOUT: ' + id);
+         commandResult(id, false, null, 'ACK timeout (5 seconds)');
+       }, ACK_TIMEOUT_MS);
+     } finally {
+       writer.releaseLock();
+     }
+   });
+   try { await writeQueue; }
+   catch (error) {
+     if (pendingPings.has(id)) {
+       clearTimeout(entry.timer);
+       pendingPings.delete(id);
+       append('WRITE ERROR: ' + String(error));
+       commandResult(id, false, null, 'Web Serial write failed: ' + String(error));
+     }
+   }
+ }
+ if (hardwareChannel) hardwareChannel.addEventListener('message', event => {
+   const message = event.data;
+   if (message?.type === 'ESP32_COMMAND' || message?.type === 'ESP32_COMMAND_REQUEST') {
+     void sendCommandToESP32(message);
+   }
+ });
+
+ function status(message, good=false) { $('state').textContent = message; $('state').className = 'status' + (good ? ' good' : ''); }
+ function append(message) {
+   const lines = message.split(/\r?\n/);
+   for (const line of lines) {
+     if (!line.trim()) continue;
+     if (lineCount++ > 180) { const first = logBox.firstChild; if (first) {logBox.removeChild(first);lineCount--;} }
+     const div = document.createElement('div'); div.textContent = line; logBox.appendChild(div);
+     logBox.scrollTop = logBox.scrollHeight;
+     interpret(line);
+   }
+ }
+ // A null reading is valid when no external sensor is connected.
+ // Do not fabricate measurements or confuse USB Serial with sensor verification.
+ function normalizedTelemetry(data) {
+   if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
+   const numericFields = ['temperature', 'humidity', 'soil_moisture'];
+   const has = (key) => Object.prototype.hasOwnProperty.call(data, key);
+   if (!numericFields.every(key => has(key) &&
+       (data[key] === null || (typeof data[key] === 'number' && Number.isFinite(data[key]))))) return null;
+   if (!has('plant_name') || typeof data.plant_name !== 'string' || !data.plant_name.trim()) return null;
+   if (has('data_origin') && typeof data.data_origin !== 'string') return null;
+   return {
+     temperature: data.temperature,
+     humidity: data.humidity,
+     soil_moisture: data.soil_moisture,
+     plant_name: data.plant_name,
+     data_origin: typeof data.data_origin === 'string' ? data.data_origin : 'UNSPECIFIED'
+   };
+ }
+ function appendAckLine(data, matched) {
+   // Do not feed the log line back into interpret() (avoids recursion).
+   const div = document.createElement('div');
+   div.textContent = (matched ? 'RX ACK: ' : 'UNMATCHED ACK: ') + JSON.stringify(data);
+   if (lineCount++ > 180 && logBox.firstChild) { logBox.removeChild(logBox.firstChild); lineCount--; }
+   logBox.appendChild(div); logBox.scrollTop = logBox.scrollHeight;
+ }
+ function interpret(line) {
+   const start = line.indexOf('{');
+   const end = line.lastIndexOf('}');
+   if (start < 0 || end <= start) return;
+   let data;
+   try { data = JSON.parse(line.slice(start, end + 1)); } catch { return; }
+   if (data && typeof data === 'object' && data.type === 'WIFI_STATUS' &&
+       typeof data.connected === 'boolean' && typeof data.state === 'string' &&
+       (data.ip === null || validIpv4(data.ip)) &&
+       (data.rssi_dbm === null || (typeof data.rssi_dbm === 'number' && Number.isFinite(data.rssi_dbm)))) {
+     networkStatus(data);
+     return;
+   }
+   if (data && typeof data === 'object' && data.type === 'ACK' &&
+       typeof data.id === 'string' && wifiRequests.has(data.id)) {
+     const requested = wifiRequests.get(data.id);
+     wifiRequests.delete(data.id);
+     if (data.cmd !== requested || data.ok !== true) {
+       appendAckLine(data, false);
+       $('wifi-hint').textContent = 'บอร์ดปฏิเสธคำสั่ง ' + requested + ': ' + String(data.error || 'ACK invalid');
+     } else {
+       appendAckLine(data, true);
+       $('wifi-hint').textContent = requested === 'WIFI_CONNECT'
+         ? 'บอร์ดรับคำสั่งแล้ว กำลังรอ WIFI_STATUS connected + IP จริง (ACK ยังไม่ใช่หลักฐานว่าเชื่อมสำเร็จ)'
+         : 'บอร์ดรับคำสั่ง ' + requested + ' แล้ว รอสถานะใหม่จาก Firmware';
+     }
+     return;
+   }
+   if (data && typeof data === 'object' && data.type === 'ACK' &&
+       typeof data.id === 'string' && rgbRequests.has(data.id)) {
+     rgbRequests.delete(data.id);
+     const valid = data.cmd === 'RGB_SET' && data.ok === true &&
+       data.data && data.data.board === 'ESP32-S2' && data.data.gpio_command_accepted === true;
+     appendAckLine(data, valid);
+     $('rgb-state').textContent = valid
+       ? 'RGB ACK RECEIVED — VERIFY LED VISUALLY'
+       : 'RGB REJECTED / CHECK OPTIONAL FIRMWARE';
+     return;
+   }
+   // Only an ACK actually read from the board's Serial stream can complete a PING.
+   if (data && typeof data === 'object' && data.type === 'ACK' &&
+       typeof data.id === 'string') {
+     const entry = pendingPings.get(data.id);
+     appendAckLine(data, Boolean(entry));
+     if (!entry) return; // Late/unmatched ACK never marks a new PING as successful.
+     clearTimeout(entry.timer);
+     pendingPings.delete(data.id);
+     const valid = data.cmd === 'PING' && data.ok === true;
+     commandResult(data.id, valid, valid ? data : null,
+       valid ? '' : 'ESP32-S2 returned an invalid or rejected PING ACK');
+     return;
+   }
+   const payload = normalizedTelemetry(data);
+   if (!payload) return;
+   const shown = value => value === null ? '—' : String(value);
+   $('temperature').textContent = shown(payload.temperature);
+   $('humidity').textContent = shown(payload.humidity);
+   $('soil').textContent = shown(payload.soil_moisture);
+   $('plant').textContent = payload.plant_name;
+   $('origin').textContent = 'DATA ORIGIN (FIRMWARE-REPORTED): ' + payload.data_origin +
+     ' · null = ไม่มีค่าที่วัดได้ (ไม่ใช่ 0)';
+   $('updated').textContent = 'รับ Telemetry จากพอร์ต Serial ล่าสุด: ' + new Date().toLocaleString('th-TH');
+   if (typeof payload.humidity === 'number' && (payload.humidity < 0 || payload.humidity > 100))
+     $('updated').textContent += ' | หมายเหตุ: ความชื้นอยู่นอกช่วง 0–100%';
+   // Broadcast the JSON exactly as reported (including null), not invented sensor values.
+   // BroadcastChannel only communicates with pages on the same origin; it is not authentication.
+   if (hardwareChannel) hardwareChannel.postMessage({
+     type: 'ESP32_TELEMETRY', source: 'ESP32-S2', timestamp: Date.now(), payload
+   });
+   const noReadings = payload.temperature === null && payload.humidity === null && payload.soil_moisture === null;
+   status(payload.data_origin === 'NO_SENSOR' || noReadings ? 'LIVE SERIAL / NO SENSOR' :
+     payload.data_origin === 'SIMULATED' ? 'LIVE SERIAL / SIMULATED DATA' :
+     'LIVE TELEMETRY RECEIVED', true);
+ }
+ function chunk(text) {
+   lineBuffer += text;
+   if (lineBuffer.length > 16000) lineBuffer = lineBuffer.slice(-8000);
+   const parts = lineBuffer.split(/\r\n|\n|\r/);
+   lineBuffer = parts.pop() || '';
+   for (const item of parts) append(item);
+ }
+ async function cleanup() {
+   const wasOpen = portOpened;
+   reading = false;
+   portOpened = false;
+   failPending('Serial connection closed');
+   wifiRequests.clear();
+   rgbRequests.clear();
+   $('rgb-state').textContent = 'NOT CONNECTED';
+   $('rgb-send').disabled = true; $('rgb-off').disabled = true;
+   wifiUnavailable();
+   $('wifi-connect').disabled = true; $('wifi-check').disabled = true; $('wifi-disconnect').disabled = true;
+   try { await writeQueue; } catch {}
+   if (reader) {try {reader.releaseLock();} catch {} reader = null;}
+   if (port) {try {await port.close();} catch {} port = null;}
+   $('connect').disabled=false;
+   $('disconnect').disabled=true;
+   if (wasOpen && hardwareChannel) hardwareChannel.postMessage({
+     type: 'ESP32_LINK_STATUS', source: 'ESP32-S2', timestamp: Date.now(), connected: false
+   });
+ }
+ async function readLoop() {
+   try {
+     while(reading && port && port.readable) {
+       reader = port.readable.getReader();
+       try {
+         while(reading) {
+           const {value, done} = await reader.read();
+           if(done) break;
+           if(value) chunk(decoder.decode(value, {stream:true}));
+         }
+       } finally {if(reader){reader.releaseLock();reader=null;}}
+       break;
+     }
+   } catch(error) {
+     if(reading) {append('READ ERROR: ' + String(error));status('READ ERROR');}
+   } finally {await cleanup();if($('state').textContent !== 'READ ERROR')status('DISCONNECTED');}
+ }
+ $('connect').addEventListener('click',async () => {
+   if (!('serial' in navigator)) { status('WEB SERIAL NOT SUPPORTED'); append('โปรดเปิดหน้านี้ใน Chrome บน Windows ผ่าน http://localhost:5173/hardware-live.html'); return; }
+   if(port || reading) return;
+   try {
+     port = await navigator.serial.requestPort();
+     await port.open({baudRate:115200});
+     portOpened=true;
+     reading=true;
+     $('connect').disabled=true;$('disconnect').disabled=false;
+     $('wifi-connect').disabled=false;$('wifi-check').disabled=false;$('wifi-disconnect').disabled=false;
+     $('rgb-send').disabled=false;$('rgb-off').disabled=false;
+     status('SERIAL CONNECTED / WAITING FOR DATA',true);
+     append('=== Serial connected at 115200 baud; PING/ACK gateway mode ===');
+     void readLoop();
+   } catch(error) {append('CONNECT ERROR: '+String(error));status('CONNECT FAILED');await cleanup();}
+ });
+ $('disconnect').addEventListener('click',async () => {
+   if(!reading) return;
+   reading=false;
+   failPending('Disconnected by user');
+   status('DISCONNECTING');
+   try {if(reader) await reader.cancel();} catch {}
+ });
+ $('clear').addEventListener('click',() => {logBox.textContent='';lineCount=0;});
+ $('rgb-send').addEventListener('click', () => {
+   sendRgbCommand(Number($('rgb-red').value),Number($('rgb-green').value),Number($('rgb-blue').value));
+ });
+ $('rgb-off').addEventListener('click', () => sendRgbCommand(0,0,0));
+ $('wifi-connect').addEventListener('click', () => {
+   const ssid = $('wifi-ssid').value;
+   const password = $('wifi-password').value;
+   if (!ssid || new TextEncoder().encode(ssid).length > 32 || password.length < 8 || new TextEncoder().encode(password).length > 63) {
+     $('wifi-hint').textContent = 'ชื่อ SSID ต้องยาว 1–32 ไบต์ และรหัสผ่าน 8–63 ไบต์ (Hotspot WPA2)'; return;
+   }
+   $('wifi-state').textContent = 'CONNECTING / WAIT FOR IP';
+   $('http-state').textContent = 'NOT TESTED';
+   $('wifi-hint').textContent = 'ส่งข้อมูล Hotspot ไปยังบอร์ดผ่าน USB โดยไม่บันทึกหรือ Broadcast รหัสผ่าน';
+   sendWifiAction('WIFI_CONNECT', {ssid, password});
+   $('wifi-password').value = ''; // Do not retain passwords in the form after sending.
+ });
+ $('wifi-check').addEventListener('click', () => sendWifiAction('WIFI_STATUS'));
+ $('wifi-disconnect').addEventListener('click', () => sendWifiAction('WIFI_DISCONNECT'));
+ $('http-check').addEventListener('click', async () => {
+   const ip = reportedWifiIp;
+   if (!reportedWifiConnected || !validIpv4(ip)) return;
+   $('http-state').textContent = 'CHECKING...';
+   const abort = new AbortController();
+   const timer = setTimeout(() => abort.abort(), 5000);
+   let ok = false;
+   try {
+     const response = await fetch('http://' + ip + '/status', {signal: abort.signal, cache:'no-store', mode:'cors'});
+     if (!response.ok) throw new Error('HTTP ' + response.status);
+     const data = await response.json();
+     if (!data || data.device !== 'cucumber-r' || data.board !== 'ESP32-S2' ||
+         data.wifi_connected !== true || data.ip !== ip ||
+         typeof data.uptime_s !== 'number' || !Number.isFinite(data.uptime_s) ||
+         typeof data.rssi_dbm !== 'number' || !Number.isFinite(data.rssi_dbm)) {
+       throw new Error('HTTP response schema / board / IP mismatch');
+     }
+     ok = true;
+     $('http-state').textContent = 'HTTP GET /status PASS';
+     $('wifi-hint').textContent = 'HTTP สำเร็จ: ได้รับ JSON ตรง Schema จาก IP ของบอร์ด (ยังไม่พิสูจน์เซนเซอร์จริง)';
+     append('HTTP VERIFIED: GET http://' + ip + '/status (schema matched)');
+   } catch(error) {
+     $('http-state').textContent = 'HTTP NOT VERIFIED';
+     $('wifi-hint').textContent = 'HTTP ยังไม่ผ่าน: ' + String(error) + ' · ตรวจว่า PC กับบอร์ดอยู่ Hotspot เดียวกัน และไม่ได้บล็อก LAN/PNA/CORS';
+     append('HTTP CHECK FAILED: ' + String(error));
+   } finally {
+     clearTimeout(timer);
+     if(hardwareChannel) hardwareChannel.postMessage({type:'ESP32_HTTP_STATUS',source:'ESP32-S2',timestamp:Date.now(),ok,ip});
+   }
+ });
+ window.addEventListener('pagehide', () => {
+   if (portOpened && hardwareChannel) hardwareChannel.postMessage({
+     type: 'ESP32_LINK_STATUS', source: 'ESP32-S2', timestamp: Date.now(), connected: false
+   });
+ });
+})();
+</script>
+</body>
+</html>

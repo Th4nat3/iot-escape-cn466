@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IoT ESCAPE — ESP32-S2 PING / ACK Test</title>
+  <style>
+    :root { color-scheme: dark; --bg:#06121c; --panel:#0b2130; --border:#22516a; --text:#e8f4fa; --muted:#9bc0d2; --cyan:#53e2d6; --warn:#ffc37b; --bad:#ff8991; --good:#70e4a8; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:radial-gradient(circle at 75% 0%, #0e3041 0%, var(--bg) 54%); color:var(--text); font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { width:min(920px,calc(100% - 32px)); margin:48px auto 72px; }
+    .eyebrow { color:var(--cyan); font:700 12px/1.5 ui-monospace,Consolas,monospace; letter-spacing:2px; }
+    h1 { margin:12px 0 6px; font-size:clamp(29px,5vw,48px); line-height:1.13; letter-spacing:-1px; }
+    h1 span { color:var(--cyan); }
+    p { color:var(--muted); margin:10px 0 18px; }
+    .panel { margin:18px 0; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+    .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    button { border:1px solid #366a80; border-radius:6px; padding:12px 17px; font:700 12px ui-monospace,Consolas,monospace; letter-spacing:.5px; color:var(--text); background:#102d3d; cursor:pointer; }
+    button.primary { background:var(--cyan); border-color:var(--cyan); color:#03202a; }
+    button:disabled { cursor:not-allowed; opacity:.43; }
+    button:not(:disabled):hover { filter:brightness(1.14); }
+    .state { font:700 12px ui-monospace,Consolas,monospace; padding:6px 0; color:var(--muted); }
+    .state.good { color:var(--good); } .state.bad { color:var(--bad); }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0; }
+    .metric { border:1px solid var(--border); background:#0a1c2a; border-radius:9px; padding:14px; min-height:100px; }
+    .metric .label { color:var(--muted); font:700 11px ui-monospace,Consolas,monospace; }
+    .metric .value { font:800 21px/1.5 ui-monospace,Consolas,monospace; margin-top:12px; overflow-wrap:anywhere; }
+    .good { color:var(--good); } .bad { color:var(--bad); } .warn { color:var(--warn); }
+    h2 { font-size:17px; margin:0 0 12px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; background:#04121d; border:1px solid #194258; padding:15px; border-radius:7px; max-height:340px; overflow-y:auto; color:#b8e5f4; font:12px/1.65 ui-monospace,Consolas,monospace; min-height:170px; }
+    code { color:#b7f7e8; } .hint { color:var(--warn); font-size:13px; }
+    ol { color:var(--muted); padding-left:23px; }
+    li { margin:6px 0; }
+    @media(max-width:620px) { main { margin-top:28px; } .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">CN466 / IoT ESCAPE / ESP32-S2 / USB SERIAL</div>
+  <h1>SEND PING. <span>RECEIVE ACK.</span></h1>
+  <p>หน้าทดสอบ PING ผ่าน Hardware Monitor ซึ่งเป็นผู้เปิด USB Serial (115200 baud) เพียงหน้าเดียว แล้วตรวจ ACK ที่มี id ตรงกับคำสั่ง ไม่จำลองผลสำเร็จและไม่สั่ง GPIO</p>
+
+  <section class="panel">
+    <div class="controls">
+      <button id="connect" class="primary">1. OPEN HARDWARE MONITOR</button>
+      <button id="ping" disabled>2. SEND PING</button>
+      <button id="disconnect" disabled>PORT OWNED BY MONITOR</button>
+      <button id="clear">CLEAR LOG</button>
+      <span id="status" class="state">NOT CONNECTED</span>
+    </div>
+    <p class="hint">เปิด Hardware Monitor และเชื่อมต่อบอร์ดผ่าน COM3 ที่หน้านั้นเท่านั้น • อย่าเปิด COM3 อีกครั้งจากหน้านี้หรือ Arduino Serial Monitor</p>
+  </section>
+
+  <div class="grid">
+    <div class="metric"><div class="label">HARDWARE MONITOR</div><div id="connValue" class="value">OFFLINE</div></div>
+    <div class="metric"><div class="label">LAST COMMAND</div><div id="commandValue" class="value">—</div></div>
+    <div class="metric"><div class="label">ACK RESULT</div><div id="ackValue" class="value">NOT TESTED</div></div>
+  </div>
+
+  <section class="panel">
+    <h2>PING / ACK LOG</h2>
+    <pre id="log" aria-live="polite">Ready. Open Hardware Monitor and connect ESP32-S2 there.</pre>
+    <p>ตัวอย่างคำสั่ง: <code>{"id":"t1","cmd":"PING"}</code> + newline</p>
+    <p>ตัวอย่าง ACK ที่คาดหวัง: <code>{"type":"ACK","id":"t1","cmd":"PING","ok":true,...}</code></p>
+  </section>
+
+  <p class="hint">หมายเหตุ: ค่าเซนเซอร์เป็น <code>null</code> ได้ตามปกติเมื่อยังไม่มีเซนเซอร์จริง การรับ Telemetry ไม่ได้ยืนยันว่าคำสั่ง PING สำเร็จ ต้องเห็น ACK ที่ตรงกับ id เท่านั้น</p>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const connectBtn = $('connect'), pingBtn = $('ping');
+  const status = $('status'), connValue = $('connValue'), commandValue = $('commandValue');
+  const ackValue = $('ackValue'), logView = $('log');
+  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('iot-escape-hardware') : null;
+  let lastTelemetry = 0, pendingId = null, timer = null;
+  let logLines = [], sequence = 0;
+  function log(message) {
+    logLines.push('[' + new Date().toLocaleTimeString('th-TH', {hour12:false}) + '] ' + message);
+    if(logLines.length > 160) logLines.shift();
+    logView.textContent = logLines.join('\n'); logView.scrollTop = logView.scrollHeight;
+  }
+  function online() { return !!channel && Date.now() - lastTelemetry < 10000; }
+  function updateUI() {
+    const ready = online();
+    pingBtn.disabled = !ready || !!pendingId;
+    status.textContent = ready ? 'MONITOR LIVE (USB SERIAL)' : 'WAITING FOR MONITOR';
+    status.className = 'state' + (ready ? ' good' : '');
+    connValue.textContent = ready ? 'MONITOR LIVE' : 'OFFLINE';
+    connValue.className = 'value' + (ready ? ' good' : '');
+  }
+  function failure(reason) {
+    if (timer) clearTimeout(timer);
+    timer = null; pendingId = null;
+    ackValue.textContent = 'FAILED'; ackValue.className = 'value bad';
+    log('FAIL ' + reason); updateUI();
+  }
+  if (channel) channel.addEventListener('message', event => {
+    const msg = event.data;
+    if (!msg || typeof msg !== 'object' || msg.source !== 'ESP32-S2') return;
+    if (msg.type === 'ESP32_TELEMETRY' && typeof msg.timestamp === 'number' &&
+        Math.abs(Date.now() - msg.timestamp) <= 5000) {
+      lastTelemetry = Date.now(); updateUI(); return;
+    }
+    if (msg.type === 'ESP32_LINK_STATUS' && msg.connected === false &&
+        typeof msg.timestamp === 'number' && Math.abs(Date.now() - msg.timestamp) <= 5000) {
+      lastTelemetry = 0;
+      if (pendingId) failure('Hardware Monitor disconnected');
+      updateUI(); return;
+    }
+    if (msg.type !== 'ESP32_COMMAND_RESULT' || typeof msg.timestamp !== 'number' ||
+        Math.abs(Date.now() - msg.timestamp) > 10000) return;
+    const id = msg.requestId ?? msg.id;
+    if (!pendingId || id !== pendingId || msg.cmd !== 'PING') return;
+    const ack = msg.ack;
+    const valid = msg.ok === true && ack && ack.type === 'ACK' &&
+      ack.id === pendingId && ack.cmd === 'PING' && ack.ok === true;
+    if (valid) {
+      clearTimeout(timer); timer = null; pendingId = null;
+      ackValue.textContent = 'ACK RECEIVED'; ackValue.className = 'value good';
+      log('RX ACK: ' + JSON.stringify(ack)); log('PASS matching PING ACK from Hardware Monitor');
+      updateUI();
+    } else failure(String(msg.error ?? 'Invalid or rejected ACK'));
+  });
+  connectBtn.addEventListener('click', () => {
+    window.open('hardware-live.html', '_blank', 'noopener');
+    log('Open Hardware Monitor and connect ESP32-S2 via COM3 there.');
+  });
+  pingBtn.addEventListener('click', () => {
+    if (!online() || pendingId || !channel) return;
+    const id = 't' + Date.now().toString(36) + (++sequence).toString(36);
+    pendingId = id;
+    commandValue.textContent = 'PING (' + id + ')';
+    ackValue.textContent = 'WAITING...'; ackValue.className = 'value warn';
+    const msg = {type:'ESP32_COMMAND', source:'IOT_ESCAPE_TEST',
+      cmd:'PING', id, requestId:id, timestamp:Date.now()};
+    channel.postMessage(msg);
+    log('TX REQUEST: ' + JSON.stringify(msg));
+    timer = setTimeout(() => {if (pendingId === id) failure('ACK timeout');}, 6500);
+    updateUI();
+  });
+  $('clear').addEventListener('click', () => {logLines=[];logView.textContent='';});
+  if (!channel) log('ERROR: BroadcastChannel unavailable; use Chrome/Edge on localhost.');
+  setInterval(updateUI,1000); updateUI();
+})();
+</script>
+</body>
+</html>
